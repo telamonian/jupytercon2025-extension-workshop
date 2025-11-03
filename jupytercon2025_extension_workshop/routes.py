@@ -1,8 +1,29 @@
+import base64
 import json
+from pathlib import Path as Pth
+import random
 
 from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
 import tornado
+
+from .images_and_captions import IMAGES_AND_CAPTIONS
+
+IMAGES_DIR = Pth(__file__).parent.absolute() / "images"
+
+class ImageAndCaptionRouteHandler(APIHandler):
+    @tornado.web.authenticated
+    def get(self):
+        random_selection = random.choice(IMAGES_AND_CAPTIONS)
+
+        # Read the data and encode the bytes in base64
+        with open(IMAGES_DIR / random_selection["filename"], "rb") as f:
+            b64_bytes = base64.b64encode(f.read()).decode("utf-8")
+
+        self.finish(json.dumps({
+            "b64_bytes": b64_bytes,
+            "caption": random_selection["caption"],
+        }))
 
 class HelloRouteHandler(APIHandler):
     # The following decorator should be present on all verb methods (head, get, post,
@@ -24,6 +45,10 @@ def setup_route_handlers(web_app):
     base_url = web_app.settings["base_url"]
 
     hello_route_pattern = url_path_join(base_url, "jupytercon2025-extension-workshop", "hello")
-    handlers = [(hello_route_pattern, HelloRouteHandler)]
+    image_route_pattern = url_path_join(base_url, "jupytercon2025-extension-workshop", "random-image-caption")
+    handlers = [
+        (hello_route_pattern, HelloRouteHandler),
+        (image_route_pattern, ImageAndCaptionRouteHandler),
+    ]
 
     web_app.add_handlers(host_pattern, handlers)
